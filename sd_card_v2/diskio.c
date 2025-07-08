@@ -49,6 +49,8 @@
 #define MMCSD_MAX_BUFFER_SIZE 512
 #endif
 
+#ifndef SD_CARD_CUSTOM_HW_DRIVER
+
 #if (SD_CARD_INTERFACE == SD_CARD_SW_SPI)
 #ifndef SD_SPI_CLK
 #define SD_SPI_CLK DOUT30
@@ -67,10 +69,16 @@ SOFTSPI(mmcsd_spi, 100000UL, 0, SD_SPI_SDO, SD_SPI_SDI, SD_SPI_CLK);
 #ifndef SD_SPI_CS
 #define SD_SPI_CS SPI_CS
 #endif
+#ifndef SD_CARD_SPI_DMA
+#define SD_CARD_SPI_DMA true
+#endif
 HARDSPI(mmcsd_spi, 100000UL, 0, mcu_spi_port);
 #elif (SD_CARD_INTERFACE == SD_CARD_HW_SPI2)
 #ifndef SD_SPI_CS
 #define SD_SPI_CS SPI2_CS
+#endif
+#ifndef SD_CARD_SPI_DMA
+#define SD_CARD_SPI_DMA true
 #endif
 HARDSPI(mmcsd_spi, 100000UL, 0, mcu_spi2_port);
 #endif
@@ -99,6 +107,7 @@ FORCEINLINE static void mmcsd_spi_speed(bool highspeed)
 	if (highspeed)
 	{
 		softspi_set_frequency(SD_SPI_PORT, 10000000UL);
+		SD_SPI_PORT->spiconfig.enable_dma = SD_CARD_SPI_DMA;
 	}
 	else
 	{
@@ -153,11 +162,7 @@ bool mmcsd_response(uint8_t *result, uint16_t len, uint8_t token)
 	}
 
 	memset(result, 0xFF, len);
-	uint32_t s = mcu_micros();
 	softspi_bulk_xmit(SD_SPI_PORT, result, result, len);
-	uint32_t e = mcu_micros();
-	serial_print_int((e - s));
-	serial_print_str("us\n");
 
 	// discard CRC
 	softspi_xmit(SD_SPI_PORT, 0xFF);
@@ -783,3 +788,5 @@ DRESULT disk_writep(
 
 	return error;
 }
+
+#endif
